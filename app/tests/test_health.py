@@ -1,0 +1,39 @@
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+client = TestClient(app)
+
+
+def test_root():
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.json()["service"] == "aws-infra-automation"
+
+
+def test_liveness():
+    response = client.get("/health/live")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "alive"
+
+
+def test_readiness():
+    response = client.get("/health/ready")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+
+
+def test_version():
+    response = client.get("/api/version")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["service"] == "aws-infra-automation"
+    assert "version" in data
+    assert "environment" in data
