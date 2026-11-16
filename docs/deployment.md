@@ -16,3 +16,17 @@
 - 배포 검증 후 terraform destroy 완료
 - 실습용 AWS 리소스 삭제 완료
 - 삭제 후 서비스 주소는 더 이상 사용하지 않음
+
+
+
+## Day 6 자동 배포·재구축 검증 — 2026-11-16
+
+- 최초 부팅 스크립트에 Git 다운로드, 환경 설정, Compose 실행 추가
+- Day 5에서 검증한 Git 커밋을 지정해 앱 배포
+- docker-buildx 설치 추가 및 버전 확인
+- Terraform으로 리소스 12개 재생성
+- SSM에서 수동 배포 명령 없이 컨테이너 실행 확인
+- cloud-init 완료 및 FastAPI healthy 확인
+- 외부 API에서 alive, ready, production 응답 확인
+- 외부 TCP 8000 접근 시간 초과 확인
+- 검증 후 terraform destroy로 리소스 12개 삭제 완료
