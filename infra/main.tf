@@ -148,7 +148,13 @@ resource "aws_instance" "app" {
 
   iam_instance_profile = aws_iam_instance_profile.ec2.name
 
-  user_data                   = file("${path.module}/user_data.sh")
+  user_data = templatefile("${path.module}/user_data.sh", {
+    release_compose    = file("${path.module}/../compose.release.yaml")
+    nginx_config       = file("${path.module}/../nginx/default.conf")
+    api_image          = var.api_image
+    aws_region_json    = jsonencode(var.aws_region)
+    ghcr_username_json = jsonencode(var.ghcr_username)
+  ghcr_parameter_name_json = jsonencode(var.ghcr_token_parameter_name) })
   user_data_replace_on_change = true
 
   root_block_device {
@@ -168,6 +174,7 @@ resource "aws_instance" "app" {
     aws_route_table_association.public,
     aws_vpc_security_group_egress_rule.outbound,
     aws_iam_role_policy_attachment.ssm,
+    aws_iam_role_policy.ghcr_parameter_access,
   ]
 
   tags = {
