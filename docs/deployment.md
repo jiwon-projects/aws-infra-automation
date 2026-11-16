@@ -10,3 +10,9 @@
 - 외부 /api/version 응답: version=0.1.0, environment=production
 - 외부 TCP 8000 접근: 연결 시간 초과
 - 인프라와 Docker 설치는 자동화했으며, 앱 배포는 SSM에서 수동 수행
+
+## 리소스 정리
+
+- 배포 검증 후 terraform destroy 완료
+- 실습용 AWS 리소스 삭제 완료
+- 삭제 후 서비스 주소는 더 이상 사용하지 않음
