@@ -73,3 +73,68 @@ jobs:
             echo "- Digest: $IMAGE_NAME@$IMAGE_DIGEST"
             echo "- Platforms: linux/amd64, linux/arm64"
           } >> "$GITHUB_STEP_SUMMARY"
+
+
+      - name: Prepare published image test
+        id: release_image
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          test -n "$IMAGE_DIGEST"
+          {
+            echo "API_IMAGE=$IMAGE_NAME@$IMAGE_DIGEST"
+            echo "COMPOSE_PROJECT_NAME=release-ci"
+            echo "HTTP_BIND_IP=127.0.0.1"
+            echo "HTTP_PORT=8082"
+            echo "APP_ENV=release-ci"
+            echo "APP_VERSION=0.1.0"
+          } >> "$GITHUB_ENV"
+
+      - name: Pull and start published image
+        run: |
+          docker compose -f compose.release.yaml config --quiet
+          docker compose -f compose.release.yaml pull
+          docker compose -f compose.release.yaml up \
+            -d --no-build --pull never --wait --wait-timeout 180
+
+      - name: Test published image responses
+        run: |
+          curl -fsS --max-time 10 http://127.0.0.1:8082/health/live \
+            | python3 -c 'import json, sys; assert json.load(sys.stdin)["status"] == "alive"'
+
+          curl -fsS --max-time 10 http://127.0.0.1:8082/health/ready \
+            | python3 -c 'import json, sys; assert json.load(sys.stdin)["status"] == "ready"'
+
+          curl -fsS --max-time 10 http://127.0.0.1:8082/api/version \
+            | python3 -c 'import json, sys; assert json.load(sys.stdin)["environment"] == "release-ci"'
+
+      - name: Check running image reference
+        run: |
+          API_CONTAINER=$(docker compose -f compose.release.yaml ps -q api)
+          RUNNING_IMAGE=$(docker inspect "$API_CONTAINER" --format '{{.Config.Image}}')
+          test "$RUNNING_IMAGE" = "$API_IMAGE"
+
+      - name: Check internal communication and API port
+        run: |
+          docker compose -f compose.release.yaml exec -T nginx \
+            wget -qO- http://api:8000/health/live \
+            | python3 -c 'import json, sys; assert json.load(sys.stdin)["status"] == "alive"'
+
+          docker inspect "$(docker compose -f compose.release.yaml ps -q api)" \
+            --format '{{json .HostConfig.PortBindings}}' \
+            | python3 -c 'import json, sys; assert not (json.load(sys.stdin) or {}).get("8000/tcp"), "API port 8000 is published"'
+
+      - name: Record image test result
+        run: |
+          echo "- Published image execution test: passed (linux/amd64)" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Show release container logs
+        if: always() && steps.release_image.outcome == 'success'
+        run: |
+          docker compose -f compose.release.yaml ps -a
+          docker compose -f compose.release.yaml logs --no-color --tail=100
+
+      - name: Clean up release containers
+        if: always() && steps.release_image.outcome == 'success'
+        run: docker compose -f compose.release.yaml down --volumes --remove-orphans
