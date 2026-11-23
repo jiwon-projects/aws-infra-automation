@@ -97,6 +97,33 @@ jobs:
           docker compose -f compose.release.yaml up \
             -d --no-build --pull never --wait --wait-timeout 180
 
+
+      - name: 잘못된 이미지 Digest 감지 확인
+        shell: bash
+        run: |
+          CHECK_LOG="$(mktemp "$RUNNER_TEMP/digest-mismatch.XXXXXX")"
+
+          # 예상한 실패의 종료 코드를 직접 확인한다.
+          set +e
+          API_IMAGE="$IMAGE_NAME@sha256:0000000000000000000000000000000000000000000000000000000000000000" \
+            bash scripts/verify_release.sh "$COMPOSE_PROJECT_NAME" \
+            > "$CHECK_LOG" 2>&1
+          CHECK_STATUS=$?
+          set -e
+
+          cat "$CHECK_LOG"
+
+          if [[ "$CHECK_STATUS" -ne 1 ]]; then
+            echo "예상한 종료 코드 1이 아닙니다: $CHECK_STATUS" >&2
+            exit 1
+          fi
+
+          if ! grep -Fq "이미지 참조가 일치하지 않습니다." "$CHECK_LOG"; then
+            echo "이미지 불일치 이외의 이유로 실패했습니다." >&2
+            exit 1
+          fi
+
+          echo "잘못된 이미지 Digest 감지 확인 완료"
       - name: 배포 검증 스크립트 실행
         run: bash scripts/verify_release.sh "$COMPOSE_PROJECT_NAME"
 
