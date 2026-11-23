@@ -97,32 +97,8 @@ jobs:
           docker compose -f compose.release.yaml up \
             -d --no-build --pull never --wait --wait-timeout 180
 
-      - name: Test published image responses
-        run: |
-          curl -fsS --max-time 10 http://127.0.0.1:8082/health/live \
-            | python3 -c 'import json, sys; assert json.load(sys.stdin)["status"] == "alive"'
-
-          curl -fsS --max-time 10 http://127.0.0.1:8082/health/ready \
-            | python3 -c 'import json, sys; assert json.load(sys.stdin)["status"] == "ready"'
-
-          curl -fsS --max-time 10 http://127.0.0.1:8082/api/version \
-            | python3 -c 'import json, sys; assert json.load(sys.stdin)["environment"] == "release-ci"'
-
-      - name: Check running image reference
-        run: |
-          API_CONTAINER=$(docker compose -f compose.release.yaml ps -q api)
-          RUNNING_IMAGE=$(docker inspect "$API_CONTAINER" --format '{{.Config.Image}}')
-          test "$RUNNING_IMAGE" = "$API_IMAGE"
-
-      - name: Check internal communication and API port
-        run: |
-          docker compose -f compose.release.yaml exec -T nginx \
-            wget -qO- http://api:8000/health/live \
-            | python3 -c 'import json, sys; assert json.load(sys.stdin)["status"] == "alive"'
-
-          docker inspect "$(docker compose -f compose.release.yaml ps -q api)" \
-            --format '{{json .HostConfig.PortBindings}}' \
-            | python3 -c 'import json, sys; assert not (json.load(sys.stdin) or {}).get("8000/tcp"), "API port 8000 is published"'
+      - name: 배포 검증 스크립트 실행
+        run: bash scripts/verify_release.sh "$COMPOSE_PROJECT_NAME"
 
       - name: Record image test result
         run: |
