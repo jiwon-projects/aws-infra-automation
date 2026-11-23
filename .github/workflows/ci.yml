@@ -93,6 +93,9 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose config --quiet
 
+      - name: 배포 검증 스크립트 문법 검사
+        run: bash -n scripts/verify_release.sh
+
       - name: Build and start services
         run: docker compose up -d --build --wait --wait-timeout 180
 
